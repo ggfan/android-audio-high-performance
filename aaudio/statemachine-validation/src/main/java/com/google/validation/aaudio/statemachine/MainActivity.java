@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.sample.aaudio.play;
+package com.google.validation.aaudio.statemachine;
 
 import android.app.Activity;
 import android.content.Context;

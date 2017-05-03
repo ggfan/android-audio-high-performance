@@ -20,7 +20,7 @@
 #include "audio_common.h"
 #include "SineGenerator.h"
 #include "stream_builder.h"
-
+#include "validate_outstream.h"
 /*
  * This Sample's Engine Structure
  */
@@ -31,7 +31,7 @@ struct AAudioEngine {
     aaudio_audio_format_t sampleFormat_;
 
     AAudioStream *playStream_;
-    bool   requestStop_;
+    bool   validationInProgress_;
     bool   playAudio_;
 
 };
@@ -42,16 +42,16 @@ static AAudioEngine engine;
  */
 extern "C" {
   JNIEXPORT jboolean JNICALL
-  Java_com_google_sample_aaudio_play_MainActivity_createEngine(
+  Java_com_google_validation_aaudio_statemachine_MainActivity_createEngine(
             JNIEnv *env, jclass);
   JNIEXPORT void JNICALL
-  Java_com_google_sample_aaudio_play_MainActivity_deleteEngine(
+  Java_com_google_validation_aaudio_statemachine_MainActivity_deleteEngine(
             JNIEnv *env, jclass type);
   JNIEXPORT jboolean JNICALL
-  Java_com_google_sample_aaudio_play_MainActivity_start(
+  Java_com_google_validation_aaudio_statemachine_MainActivity_start(
             JNIEnv *env, jclass type);
   JNIEXPORT jboolean JNICALL
-  Java_com_google_sample_aaudio_play_MainActivity_stop(
+  Java_com_google_validation_aaudio_statemachine_MainActivity_stop(
             JNIEnv *env, jclass type);
 }
 
@@ -65,55 +65,15 @@ bool TunePlayerForLowLatency(AAudioStream* stream);
  */
 void PlayAudioThreadProc(void* ctx) {
   AAudioEngine* eng = reinterpret_cast<AAudioEngine*>(ctx);
+  bool stateValidationStatus = ValidateStreamStateMachine(
+          eng->sampleFormat_,
+          eng->sampleChannels_,
+          AAUDIO_DIRECTION_OUTPUT);
 
-  bool status = TunePlayerForLowLatency(engine.playStream_);
-  if (!status) {
-    // if tune up is failed, audio could still play
-    LOGW("Failed to tune up the audio buffer size,"
-             "low latency audio may not be guaranteed");
-  }
-  // double check the tuning result: not necessary
-  PrintAudioStreamInfo(engine.playStream_);
+  LOGI("=====: State Validation Result =%s",
+       stateValidationStatus ? "PASSED" : "FAIL");
 
-  LOGV("=====: currentState=%d", AAudioStream_getState(eng->playStream_));
-
-  // prepare for data generator
-  SineGenerator sineOscLeft, sineOscRight;
-  sineOscLeft.setup(440.0, eng->sampleRate_, 0.25);
-  sineOscRight.setup(660.0, eng->sampleRate_, 0.25);
-  int32_t framesPerBurst = AAudioStream_getFramesPerBurst(eng->playStream_);
-  int32_t samplesPerFrame = AAudioStream_getSamplesPerFrame(eng->playStream_);
-
-  // Writing it out as frames per burst, total 5 seconds
-  int16_t *buf = new int16_t[framesPerBurst * samplesPerFrame];
-  assert(buf);
-
-  aaudio_result_t result;
-  while (!eng->requestStop_) {
-    if (eng->playAudio_) {
-      sineOscRight.render(&buf[0], samplesPerFrame, framesPerBurst);
-      if (samplesPerFrame == 2) {
-        sineOscLeft.render(&buf[0] + 1, samplesPerFrame, framesPerBurst);
-      }
-    } else {
-      memset(buf, 0, sizeof(int16_t) * framesPerBurst * samplesPerFrame);
-    }
-    result = AAudioStream_write(eng->playStream_,
-                                buf,
-                                framesPerBurst,
-                                100000000);
-    assert(result > 0);
-  }
-
-  delete [] buf;
-  eng->requestStop_ = false;
-
-  AAudioStream_requestStop(eng->playStream_);
-
-  AAudioStream_close(eng->playStream_);
-  eng->playStream_ = nullptr;
-
-  LOGV("====Player is done");
+  eng->validationInProgress_ = false;
 }
 
 /*
@@ -121,8 +81,8 @@ void PlayAudioThreadProc(void* ctx) {
  * audio is already rendering -- rendering silent audio.
  */
 JNIEXPORT jboolean JNICALL
-Java_com_google_sample_aaudio_play_MainActivity_createEngine(
-        JNIEnv *env, jclass type) {
+Java_com_google_validation_aaudio_statemachine_MainActivity_createEngine(
+    JNIEnv *env, jclass type) {
 
     memset(&engine, 0, sizeof(engine));
 
@@ -130,25 +90,6 @@ Java_com_google_sample_aaudio_play_MainActivity_createEngine(
     engine.sampleFormat_ = AAUDIO_FORMAT_PCM_I16;
     engine.bitsPerSample_ = SampleFormatToBpp(engine.sampleFormat_);
 
-    // Create an Output Stream
-    StreamBuilder builder;
-    engine.playStream_ = builder.CreateStream(engine.sampleFormat_,
-                                            engine.sampleChannels_,
-                                            AAUDIO_SHARING_MODE_SHARED);
-    if (!engine.playStream_) {
-      assert(false);
-      return JNI_FALSE;
-    }
-
-    engine.sampleRate_ = AAudioStream_getSampleRate(engine.playStream_);
-    aaudio_result_t result = AAudioStream_requestStart(engine.playStream_);
-    if (result != AAUDIO_OK) {
-      assert(result == AAUDIO_OK);
-      return JNI_FALSE;
-    }
-
-    std::thread t(PlayAudioThreadProc, &engine);
-    t.detach();
     return JNI_TRUE;
 }
 
@@ -157,12 +98,15 @@ Java_com_google_sample_aaudio_play_MainActivity_createEngine(
  *   start to render sine wave audio.
  */
 JNIEXPORT jboolean JNICALL
-Java_com_google_sample_aaudio_play_MainActivity_start(
+Java_com_google_validation_aaudio_statemachine_MainActivity_start(
     JNIEnv *env, jclass type) {
-  if (!engine.playStream_)
+  if (engine.validationInProgress_)
     return JNI_FALSE;
 
-  engine.playAudio_ = true;
+  engine.validationInProgress_ = true;
+  std::thread t(PlayAudioThreadProc, &engine);
+  t.detach();
+
   return JNI_TRUE;
 }
 
@@ -171,13 +115,12 @@ Java_com_google_sample_aaudio_play_MainActivity_start(
  *   stop rendering sine wave audio ( resume rendering silent audio )
  */
 JNIEXPORT jboolean JNICALL
-Java_com_google_sample_aaudio_play_MainActivity_stop(
+Java_com_google_validation_aaudio_statemachine_MainActivity_stop(
     JNIEnv *env, jclass type) {
-  if (!engine.playStream_)
+  if (!engine.validationInProgress_)
     return JNI_TRUE;
 
-  engine.playAudio_ = false;
-  return JNI_TRUE;
+  return JNI_FALSE;
 }
 
 /*
@@ -186,12 +129,8 @@ Java_com_google_sample_aaudio_play_MainActivity_stop(
  *   flag and rendering thread will see it and perform clean-up
  */
 JNIEXPORT void JNICALL
-Java_com_google_sample_aaudio_play_MainActivity_deleteEngine(
+Java_com_google_validation_aaudio_statemachine_MainActivity_deleteEngine(
     JNIEnv *env, jclass type) {
-  if (!engine.playStream_) {
-    return;
-  }
-  engine.requestStop_ = true;
 }
 
 /*

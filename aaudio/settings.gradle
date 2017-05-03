@@ -15,6 +15,5 @@
  *
  */
 
-include ':hello-aaudio'
-include ':echo'
+include ':statemachine-validation'
 

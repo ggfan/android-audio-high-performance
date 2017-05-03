@@ -13,22 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 cmake_minimum_required(VERSION 3.4.1)
 
 get_filename_component(AAUDIO_COMMON_PATH "../../../../third_party/aaudio" ABSOLUTE)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Werror")
 
-add_library(echo SHARED
+add_library(hello-aaudio SHARED
             audio_main.cpp
+            validate_outstream.cpp
             ${AAUDIO_COMMON_PATH}/utils/audio_common.cpp
             ${AAUDIO_COMMON_PATH}/utils/debug_utils.cpp)
 
-target_include_directories(echo PRIVATE
+target_include_directories(hello-aaudio PRIVATE
                            ${AAUDIO_COMMON_PATH}/utils
                            ${AAUDIO_COMMON_PATH}/../android)
 
-# include libraries needed for echo lib
-target_link_libraries(echo
+# include libraries needed for hello-aaudio
+target_link_libraries(hello-aaudio
                       aaudio
                       android
                       atomic
