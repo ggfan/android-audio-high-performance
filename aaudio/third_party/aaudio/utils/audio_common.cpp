@@ -66,7 +66,13 @@ void PrintAudioStreamInfo(const AAudioStream * stream) {
     LOGW("BufferCapacity: %d", STREAM_CALL(getBufferCapacityInFrames));
     LOGI("BufferSize: %d", STREAM_CALL(getBufferSizeInFrames));
     LOGI("FramesPerBurst: %d", STREAM_CALL(getFramesPerBurst));
-    LOGI("XRunCount: %d", STREAM_CALL(getXRunCount));
+    int32_t  xrun  = STREAM_CALL(getXRunCount);
+    if (xrun < 0 ) {
+        LOGE("*******ERROR: AAudioStream_GetXRunCount() returns %d (%s)",
+            xrun, AAudio_convertResultToText(xrun));
+    } else {
+        LOGI("XRunCount: %d", STREAM_CALL(getXRunCount));
+    }
     LOGI("SampleRate: %d", STREAM_CALL(getSampleRate));
     LOGI("SamplesPerFrame: %d", STREAM_CALL(getSamplesPerFrame));
     LOGI("DeviceId: %d", STREAM_CALL(getDeviceId));

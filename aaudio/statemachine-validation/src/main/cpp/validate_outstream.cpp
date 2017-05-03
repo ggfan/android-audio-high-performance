@@ -79,8 +79,9 @@ bool ValidateStreamStateMachine(aaudio_audio_format_t format,
     if (pState->action) {
       status = pState->action(inputStream);
       if (status != AAUDIO_OK) {
-        LOGE("******ERROR: failed action to go to state %s, status = %d",
-             AAudio_convertStreamStateToText(pState->state), status);
+        LOGE("******ERROR: failed action to go to state %s, status = %s",
+             AAudio_convertStreamStateToText(pState->state),
+             AAudio_convertResultToText(status));
       }
       // assert(status == AAUDIO_OK);
     }
