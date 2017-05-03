@@ -2,6 +2,7 @@
 // Created by Gerry Fan on 5/2/17.
 //
 #include <vector>
+#include <audio_common.h>
 #include "android_debug.h"
 #include "stream_builder.h"
 #include "validate_outstream.h"
@@ -67,7 +68,9 @@ bool ValidateStreamStateMachine(aaudio_audio_format_t format,
   inputStream = builder.CreateStream(format,
                                      samplesPerFrame,
                                      AAUDIO_SHARING_MODE_SHARED,
-                                     direction);
+                                     direction,
+                                     48000);
+  PrintAudioStreamInfo(inputStream);
 
   for (int32_t idx = 0; idx < stateMachineSize; idx++) {
      // Activate into the state
@@ -75,7 +78,11 @@ bool ValidateStreamStateMachine(aaudio_audio_format_t format,
     ValidationStateInfo *pState = & stateMachine[idx];
     if (pState->action) {
       status = pState->action(inputStream);
-      assert(status == AAUDIO_OK);
+      if (status != AAUDIO_OK) {
+        LOGE("******ERROR: failed action to go to state %s, status = %d",
+             AAudio_convertStreamStateToText(pState->state), status);
+      }
+      // assert(status == AAUDIO_OK);
     }
 
     if (pState->state == AAUDIO_STREAM_STATE_CLOSED) {

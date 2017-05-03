@@ -70,7 +70,15 @@ void PlayAudioThreadProc(void* ctx) {
           eng->sampleChannels_,
           AAUDIO_DIRECTION_OUTPUT);
 
-  LOGI("=====: State Validation Result =%s",
+  LOGI("=====: StateMachine Validation Result =%s",
+       stateValidationStatus ? "PASSED" : "FAIL");
+
+  stateValidationStatus = ValidateStreamStateMachine(
+          eng->sampleFormat_,
+          eng->sampleChannels_,
+          AAUDIO_DIRECTION_INPUT);
+
+  LOGI("=====: StateMachine Validation Result =%s",
        stateValidationStatus ? "PASSED" : "FAIL");
 
   eng->validationInProgress_ = false;

@@ -3,6 +3,7 @@
     package="com.google.validation.aaudio.statemachine" >
 
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"></uses-permission>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"></uses-permission>
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"

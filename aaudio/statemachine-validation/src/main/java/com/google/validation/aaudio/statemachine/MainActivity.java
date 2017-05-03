@@ -16,16 +16,22 @@
 
 package com.google.validation.aaudio.statemachine;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.MotionEventCompat;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
+    private static final int AUDIO_ECHO_REQUEST = 0;
     boolean engineCreated = false;
     /*
      * Hook to user control to start / stop audio playback:
@@ -35,6 +41,10 @@ public class MainActivity extends Activity {
      */
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+
+        if (!engineCreated)
+            return super.onTouchEvent(event);
+
         int action = MotionEventCompat.getActionMasked(event);
         switch(action) {
             case (MotionEvent.ACTION_DOWN) :
@@ -54,6 +64,14 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         // initialize native audio system
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+                PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    AUDIO_ECHO_REQUEST);
+            return;
+        }
         engineCreated = createEngine();
     }
     @Override
@@ -83,6 +101,36 @@ public class MainActivity extends Activity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        /*
+         * if any permission failed, the sample could not play
+         */
+        if (AUDIO_ECHO_REQUEST != requestCode) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            return;
+        }
+
+        if (grantResults.length != 1  ||
+                grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            /*
+             * When user denied the permission, throw a Toast to prompt that RECORD_AUDIO
+             * is necessary; on UI, we display the current status as permission was denied so
+             * user know what is going on.
+             * This application go back to the original state: it behaves as if the button
+             * was not clicked. The assumption is that user will re-click the "start" button
+             * (to retry), or shutdown the app in normal way.
+             */
+            Toast.makeText(getApplicationContext(),
+                    getString(R.string.NeedRecordAudioPermission),
+                    Toast.LENGTH_SHORT)
+                    .show();
+            return;
+        }
+        engineCreated = createEngine();
     }
 
     /*
