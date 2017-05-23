@@ -21,9 +21,7 @@ static const int32_t audioFormatEnum[] = {
     AAUDIO_FORMAT_INVALID,
     AAUDIO_FORMAT_UNSPECIFIED,
     AAUDIO_FORMAT_PCM_I16,
-    AAUDIO_FORMAT_PCM_FLOAT,
-    AAUDIO_FORMAT_PCM_I8_24,
-    AAUDIO_FORMAT_PCM_I32
+    AAUDIO_FORMAT_PCM_FLOAT
 };
 static const int32_t audioFormatCount = sizeof(audioFormatEnum)/
                                         sizeof(audioFormatEnum[0]);
@@ -33,8 +31,6 @@ static const uint32_t sampleFormatBPP[] = {
     0xffff,
     16, //I16
     32, //FLOAT
-    24, //I8_24
-    32,
 };
 uint16_t SampleFormatToBpp(aaudio_audio_format_t format) {
     for (int32_t i = 0; i < audioFormatCount; ++i) {

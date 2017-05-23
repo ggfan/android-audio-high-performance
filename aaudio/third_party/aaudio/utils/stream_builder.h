@@ -26,6 +26,7 @@ class StreamBuilder {
 public:
     explicit StreamBuilder() {
       aaudio_result_t  result = AAudio_createStreamBuilder(&builder_);
+      (void) result;
       assert(result == AAUDIO_OK && builder_);
     }
     ~StreamBuilder() {

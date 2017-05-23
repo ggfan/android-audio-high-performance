@@ -7,7 +7,7 @@
 #include "stream_builder.h"
 #include "validate_outstream.h"
 
-#define WAITING_TIME_IN_SECOND 3
+#define WAITING_TIME_IN_SECOND 10
 #define WAITING_TIME_IN_MS     0
 
 // define stable state macro: including all non-transient states
@@ -101,7 +101,7 @@ bool ValidateStreamStateMachine(aaudio_audio_format_t format,
                 inputStream,
                 stateMachine[idx - 1].state,
                 &nextState,
-                WAITING_TIME_IN_MS + WAITING_TIME_IN_SECOND * 1000000);
+                (int64_t)(WAITING_TIME_IN_MS + WAITING_TIME_IN_SECOND * 1000000) * 1000);
       } while ((status == AAUDIO_OK || status == AAUDIO_ERROR_TIMEOUT)
                && nextState == AAUDIO_STREAM_STATE_UNINITIALIZED);
     }
@@ -176,7 +176,7 @@ bool CheckState(aaudio_stream_state_t state) {
             inputStream,
             curState,
             &nextState,
-            WAITING_TIME_IN_MS + WAITING_TIME_IN_SECOND * 1000000);
+            (int64_t)(WAITING_TIME_IN_MS + WAITING_TIME_IN_SECOND * 1000000) * 1000);
   } while ((status == AAUDIO_OK || status == AAUDIO_ERROR_TIMEOUT)
            && nextState == AAUDIO_STREAM_STATE_UNINITIALIZED);
   curState = AAudioStream_getState(inputStream);
