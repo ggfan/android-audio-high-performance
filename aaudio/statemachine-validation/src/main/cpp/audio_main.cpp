@@ -65,7 +65,7 @@ bool TunePlayerForLowLatency(AAudioStream* stream);
  */
 void PlayAudioThreadProc(void* ctx) {
   AAudioEngine* eng = reinterpret_cast<AAudioEngine*>(ctx);
-  bool stateValidationStatus = ValidateStreamStateMachine(
+  bool stateValidationStatus = ValidateStreamStateMachine2(
           eng->sampleFormat_,
           eng->sampleChannels_,
           AAUDIO_DIRECTION_OUTPUT);

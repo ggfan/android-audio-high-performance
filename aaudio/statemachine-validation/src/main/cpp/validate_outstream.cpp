@@ -94,18 +94,22 @@ bool ValidateStreamStateMachine(aaudio_audio_format_t format,
     }
 
     // wait for it to leave previous state
+    aaudio_stream_state_t nextState = AAUDIO_STREAM_STATE_UNINITIALIZED;
     if (idx) {
-      aaudio_stream_state_t nextState = AAUDIO_STREAM_STATE_UNINITIALIZED;
       do {
         status = AAudioStream_waitForStateChange(
                 inputStream,
-                stateMachine[idx - 1].state,
+                stateMachine[idx].state - 1,
                 &nextState,
                 (int64_t)(WAITING_TIME_IN_MS + WAITING_TIME_IN_SECOND * 1000000) * 1000);
       } while ((status == AAUDIO_OK || status == AAUDIO_ERROR_TIMEOUT)
                && nextState == AAUDIO_STREAM_STATE_UNINITIALIZED);
     }
 
+    if (pState->state == AAUDIO_STREAM_STATE_STARTED) {
+      LOGI("entering STARTED state: nextgState = %s", AAudio_convertStreamStateToText(nextState));
+      LOGI("status: %s", AAudio_convertResultToText(status));
+    }
     pState->result = CheckState(pState->state);
   }
 
@@ -128,6 +132,97 @@ bool ValidateStreamStateMachine(aaudio_audio_format_t format,
 
   inputStream = nullptr;
   return passed;
+}
+
+
+bool ValidateStreamStateMachine2(aaudio_audio_format_t format,
+                                int32_t samplesPerFrame,
+                                aaudio_direction_t direction) {
+  LOGI("====>output Stream validation done!");
+  
+  assert(inputStream == nullptr);
+  StreamBuilder builder;
+  inputStream = builder.CreateStream(format,
+                                     samplesPerFrame,
+                                     AAUDIO_SHARING_MODE_SHARED,
+                                     AAUDIO_DIRECTION_OUTPUT,
+                                     48000);
+  PrintAudioStreamInfo(inputStream);
+
+  aaudio_stream_state_t  state;
+#define NANOS_PER_SECOND  (uint64_t)(1000000 * 1000)
+  aaudio_result_t result = AAudioStream_requestStart(inputStream);
+  if (result != AAUDIO_OK) {
+    LOGE("ERROR - AAudioStream_requestStart() returned %d %s\n",
+           result, AAudio_convertResultToText(result));
+    goto finish;
+  }
+  result = AAudioStream_waitForStateChange(inputStream,
+                                           AAUDIO_STREAM_STATE_STARTING,
+                                           &state,
+                                           NANOS_PER_SECOND);
+
+  if (result != AAUDIO_OK) {
+    LOGE("after start error result %d, state = %s\n",
+         result, AAudio_convertStreamStateToText(state));
+    goto finish;
+  }
+  LOGI("After start, state=%s", AAudio_convertStreamStateToText(state));
+
+  result = AAudioStream_requestPause(inputStream);
+  if (result != AAUDIO_OK) {
+    LOGE("ERROR - AAudioStream_requestPause() returned %d %s\n", 
+           result, AAudio_convertResultToText(result));
+    goto finish;
+  }
+  result = AAudioStream_waitForStateChange(inputStream,
+                                           AAUDIO_STREAM_STATE_PAUSING,
+                                           &state,
+                                           NANOS_PER_SECOND);
+  if (result != AAUDIO_OK) {
+    LOGE("after pause error result %d, state = %s\n", 
+           result, AAudio_convertStreamStateToText(state));
+    goto finish;
+  }
+  LOGI("after pause, state = %s\n", AAudio_convertStreamStateToText(state));
+  result = AAudioStream_requestFlush(inputStream);
+  if (result != AAUDIO_OK) {
+    LOGE("ERROR - AAudioStream_requestFlush() returned %d %s\n",
+           result, AAudio_convertResultToText(result));
+    goto finish;
+  }
+  result = AAudioStream_waitForStateChange(inputStream,
+                                           AAUDIO_STREAM_STATE_FLUSHING,
+                                           &state,
+                                           NANOS_PER_SECOND);
+  if (result != AAUDIO_OK) {
+    LOGE("after flush error result %d, state = %s\n",
+           result, AAudio_convertStreamStateToText(state));
+    goto finish;
+  }
+  LOGI("after flush, state = %s\n", AAudio_convertStreamStateToText(state));
+  result = AAudioStream_requestStart(inputStream);
+  if (result != AAUDIO_OK) {
+    LOGE("ERROR - AAudioStream_requestStart() returned %d %s\n", 
+           result, AAudio_convertResultToText(result));
+    }
+  result = AAudioStream_waitForStateChange(inputStream,
+                                           AAUDIO_STREAM_STATE_STARTING,
+                                           &state,
+                                           5 * NANOS_PER_SECOND);
+  if (result != AAUDIO_OK) {
+    LOGE("after start error result %d, state = %s\n",
+           result, AAudio_convertStreamStateToText(state));
+    goto finish;
+  }
+  LOGI("after start, state = %s\n", AAudio_convertStreamStateToText(state));
+  
+  finish:
+      AAudioStream_close(inputStream);
+  
+  LOGI("<====output Stream validation done!");
+  inputStream = nullptr;
+  return true;
 }
 
 /*
